@@ -531,26 +531,44 @@ start_mailcow() {
 
   cd /opt/mailcow-dockerized
 
-  info "Pulling Docker images (may take several minutes)..."
-  docker compose pull 2>/dev/null || warn "Some images may not have pulled correctly"
+  # Make sure postfix is stopped before pulling
+  systemctl stop postfix 2>/dev/null || true
+  systemctl disable postfix 2>/dev/null || true
+  fuser -k 25/tcp 2>/dev/null || true
+  sleep 2
 
-  info "Starting all containers..."
-  docker compose up -d 2>/dev/null || fail "Failed to start containers!"
-  ok "Containers started"
-
-  info "Waiting for services to initialize (30 seconds)..."
-  sleep 30
-
-  # Fix postfix if not running
-  POSTFIX_CONTAINER=$(docker compose ps 2>/dev/null | grep postfix | grep -v "Up" | awk '{print $1}' | head -1 || echo "")
-  if [[ -n "$POSTFIX_CONTAINER" ]]; then
-    warn "Postfix not running — stopping host postfix and restarting"
-    systemctl stop postfix 2>/dev/null || true
-    sleep 3
-    docker compose up -d 2>/dev/null || true
+  info "Pulling Docker images (this will take several minutes, please wait)..."
+  docker compose pull
+  PULL_EXIT=$?
+  if [[ $PULL_EXIT -ne 0 ]]; then
+    warn "Pull had some warnings — attempting to continue"
+  else
+    ok "All images pulled successfully"
   fi
 
-  ok "Mailcow containers started"
+  info "Starting all containers..."
+  docker compose up -d --remove-orphans
+  UP_EXIT=$?
+
+  if [[ $UP_EXIT -ne 0 ]]; then
+    warn "Some containers may have failed — checking status..."
+    docker compose ps
+    blank
+    warn "Attempting restart in 10 seconds..."
+    sleep 10
+    docker compose up -d --remove-orphans 2>/dev/null || true
+  fi
+
+  info "Waiting for services to initialize (45 seconds)..."
+  sleep 45
+
+  # Final status check
+  RUNNING=$(docker compose ps 2>/dev/null | grep -c "running\|Up" || echo 0)
+  if [[ "$RUNNING" -gt 5 ]]; then
+    ok "Mailcow is running  (${RUNNING} containers active)"
+  else
+    warn "Only ${RUNNING} containers running — check: docker compose ps"
+  fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
