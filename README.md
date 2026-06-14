@@ -7,12 +7,12 @@
 ## ⚡ One-Click Install
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/sohelranacore/mailcow-installer-ok/main/mailcow-installer.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/sohelranacore/mailcow-installer/main/mailcow-installer.sh)
 ```
 
 > Or with `wget`:
 > ```bash
-> bash <(wget -qO- https://raw.githubusercontent.com/sohelranacore/mailcow-installer-ok/main/mailcow-installer.sh)
+> bash <(wget -qO- https://raw.githubusercontent.com/sohelranacore/mailcow-installer/main/mailcow-installer.sh)
 > ```
 
 ---
