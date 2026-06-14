@@ -537,11 +537,24 @@ start_mailcow() {
   fuser -k 25/tcp 2>/dev/null || true
   sleep 2
 
+  # Disable IPv6 for Docker if not supported (common in LXC)
+  if ! ping6 -c1 -W2 1.1.1.1 &>/dev/null 2>&1; then
+    info "IPv6 not available — disabling for Docker"
+    mkdir -p /etc/docker
+    echo '{"ipv6": false}' > /etc/docker/daemon.json
+    systemctl restart docker 2>/dev/null || true
+    sleep 3
+    ok "IPv6 disabled for Docker"
+  fi
+
   info "Pulling Docker images (this will take several minutes, please wait)..."
   docker compose pull
   PULL_EXIT=$?
   if [[ $PULL_EXIT -ne 0 ]]; then
-    warn "Pull had some warnings — attempting to continue"
+    warn "Some images failed — retrying..."
+    sleep 5
+    docker compose pull 2>/dev/null || true
+    ok "Pull retry complete"
   else
     ok "All images pulled successfully"
   fi
